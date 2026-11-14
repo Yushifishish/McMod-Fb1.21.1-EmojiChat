@@ -1,71 +1,62 @@
-package com.yushifishish.emojichat.mixin;
+package com.yushifishish.emojichat.client;
 
-import com.yushifishish.emojichat.client.EmojiTextureManager;
+import com.mojang.blaze3d.platform.NativeImage;
+import com.yushifishish.emojichat.EmojiChat;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.screens.ChatScreen;
-import org.lwjgl.glfw.GLFW;
-import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.Unique;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import net.minecraft.client.renderer.texture.DynamicTexture;
+import net.minecraft.resources.ResourceLocation;
 
-@Mixin(ChatScreen.class)
-public class ChatScreenMixin {
-    @Shadow protected EditBox input;
-    
-    @Unique private boolean showSuggestions = false;
-    @Unique private final String testEmojiName = "test";
+import java.io.ByteArrayInputStream;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
-    @Inject(method = "init", at = @At("TAIL"))
-    private void onInit(CallbackInfo ci) {
-        this.input.setResponder(text -> {
-            if (text.startsWith("[") && !text.contains("]")) {
-                this.showSuggestions = true;
-                if (!EmojiTextureManager.has(testEmojiName)) {
-                    EmojiTextureManager.putTest();
+public class EmojiTextureManager {
+    private static final Map<String, ResourceLocation> CACHE = new ConcurrentHashMap<>();
+
+    public static void put(String name, byte[] data) {
+        try {
+            NativeImage image = NativeImage.read(new ByteArrayInputStream(data));
+            DynamicTexture texture = new DynamicTexture(image);
+            ResourceLocation id = EmojiChat.id("emoji/" + name);
+            Minecraft.getInstance().getTextureManager().register(id, texture);
+            CACHE.put(name, id);
+        } catch (Exception e) {
+            EmojiChat.LOGGER.error("Failed to load emoji: " + name, e);
+        }
+    }
+
+    public static void putTest() {
+        createSolidColorImage("test", 0xFFFF0000); // 红色
+    }
+
+    public static void putTest2() {
+        createSolidColorImage("test2", 0xFF0000FF); // 蓝色
+    }
+
+    private static void createSolidColorImage(String name, int color) {
+        try {
+            NativeImage image = new NativeImage(16, 16, false);
+            for (int x = 0; x < 16; x++) {
+                for (int y = 0; y < 16; y++) {
+                    image.setPixelRGBA(x, y, color);
                 }
-            } else {
-                this.showSuggestions = false;
             }
-        });
-    }
-
-    @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
-    private void onKeyPressed(int keyCode, int scanCode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
-        if (this.showSuggestions) {
-            if (keyCode == GLFW.GLFW_KEY_TAB || keyCode == GLFW.GLFW_KEY_ENTER) {
-                this.input.setValue("[" + testEmojiName + "]");
-                this.showSuggestions = false;
-                cir.setReturnValue(true);
-            } else if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
-                this.showSuggestions = false;
-            }
+            DynamicTexture texture = new DynamicTexture(image);
+            ResourceLocation id = EmojiChat.id("emoji/" + name);
+            Minecraft.getInstance().getTextureManager().register(id, texture);
+            CACHE.put(name, id);
+        } catch (Exception e) {
+            EmojiChat.LOGGER.error("Failed to load test emoji: " + name, e);
         }
     }
 
-    @Inject(method = "render", at = @At("TAIL"))
-    private void onRender(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        if (this.showSuggestions) {
-            int x = 4;
-            int y = this.input.getY() - 28;
-            
-            // Draw background
-            guiGraphics.fill(x, y, x + 110, y + 20, 0x80000000);
-            
-            // Draw red square image preview
-            if (EmojiTextureManager.has(testEmojiName)) {
-                guiGraphics.blit(EmojiTextureManager.get(testEmojiName), x + 2, y + 2, 0, 0, 16, 16, 16, 16);
-            }
-            
-            // Draw English text
-            Minecraft mc = Minecraft.getInstance();
-            guiGraphics.drawString(mc.font, "[" + testEmojiName + "]", x + 24, y + 6, 0xFFFFFF, false);
-            guiGraphics.drawString(mc.font, "§7Press Tab to complete", x + 2, y - 10, 0xAAAAAA, false);
-        }
+    // 获取所有已经加载的表情名字
+    public static List<String> getAllNames() {
+        return new ArrayList<>(CACHE.keySet());
     }
+
+    public static ResourceLocation get(String name) { return CACHE.get(name); }
+    public static boolean has(String name) { return CACHE.containsKey(name); }
 }
