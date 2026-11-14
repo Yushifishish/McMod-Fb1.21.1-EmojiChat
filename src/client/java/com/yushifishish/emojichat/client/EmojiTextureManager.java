@@ -7,6 +7,8 @@ import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.ResourceLocation;
 
 import java.io.ByteArrayInputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -25,22 +27,34 @@ public class EmojiTextureManager {
         }
     }
 
-    // 临时测试方法：用代码画一张红色图片
     public static void putTest() {
+        createSolidColorImage("test", 0xFFFF0000); // 红色
+    }
+
+    public static void putTest2() {
+        createSolidColorImage("test2", 0xFF0000FF); // 蓝色
+    }
+
+    private static void createSolidColorImage(String name, int color) {
         try {
             NativeImage image = new NativeImage(16, 16, false);
             for (int x = 0; x < 16; x++) {
                 for (int y = 0; y < 16; y++) {
-                    image.setPixelRGBA(x, y, 0xFFFF0000); // 红色
+                    image.setPixelRGBA(x, y, color);
                 }
             }
             DynamicTexture texture = new DynamicTexture(image);
-            ResourceLocation id = EmojiChat.id("emoji/test");
+            ResourceLocation id = EmojiChat.id("emoji/" + name);
             Minecraft.getInstance().getTextureManager().register(id, texture);
-            CACHE.put("test", id);
+            CACHE.put(name, id);
         } catch (Exception e) {
-            EmojiChat.LOGGER.error("Failed to load test emoji", e);
+            EmojiChat.LOGGER.error("Failed to load test emoji: " + name, e);
         }
+    }
+
+    // 获取所有已经加载的表情名字
+    public static List<String> getAllNames() {
+        return new ArrayList<>(CACHE.keySet());
     }
 
     public static ResourceLocation get(String name) { return CACHE.get(name); }
