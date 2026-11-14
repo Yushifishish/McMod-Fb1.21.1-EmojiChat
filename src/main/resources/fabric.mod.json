@@ -8,9 +8,9 @@
   "license": "MIT",
   "environment": "*",
   "entrypoints": {
-    "main": ["com.example.emojichat.EmojiChat"],
-    "client": ["com.example.emojichat.client.EmojiChatClient"],
-    "modmenu": ["com.example.emojichat.client.ModMenuIntegration"]
+    "main": ["com.yushifishish.emojichat.EmojiChat"],
+    "client": ["com.yushifishish.emojichat.client.EmojiChatClient"],
+    "modmenu": ["com.yushifishish.emojichat.client.ModMenuIntegration"]
   },
   "mixins": ["emoji-chat.mixins.json"],
   "depends": {
