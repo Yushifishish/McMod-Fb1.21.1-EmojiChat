@@ -52,7 +52,6 @@ public class EmojiTextureManager {
         }
     }
 
-    // 获取所有已经加载的表情名字
     public static List<String> getAllNames() {
         return new ArrayList<>(CACHE.keySet());
     }
