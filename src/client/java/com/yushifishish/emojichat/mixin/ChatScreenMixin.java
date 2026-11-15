@@ -31,7 +31,6 @@ public class ChatScreenMixin {
 
     @Unique
     private void updateSuggestions(String text) {
-        // If the user is typing a command, completely disable emoji suggestions to let vanilla handle it
         if (text.startsWith("/")) {
             this.showSuggestions = false;
             this.openBracketIndex = -1;
@@ -73,10 +72,8 @@ public class ChatScreenMixin {
 
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
     private void onKeyPressed(int keyCode, int scanCode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
-        // Update state based on current text
         this.updateSuggestions(this.input.getValue());
 
-        // If it's a command, do not intercept anything
         if (this.input.getValue().startsWith("/")) {
             return;
         }
@@ -131,7 +128,6 @@ public class ChatScreenMixin {
 
     @Inject(method = "render", at = @At("TAIL"))
     private void onRender(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        // Update state continuously without overriding vanilla responder
         this.updateSuggestions(this.input.getValue());
 
         if (this.showSuggestions && currentMatches != null && !currentMatches.isEmpty()) {
@@ -147,43 +143,51 @@ public class ChatScreenMixin {
             int x = Math.max(2, Math.min(screenWidth - menuWidth - 2, cursorX));
             
             int total = currentMatches.size();
-            int maxVisible = 5; 
             int itemHeight = 22;
 
+            // The center Y position (this corresponds to the 3rd item, slot 0)
             int centerY = this.input.getY() - 6 - 20 - (2 * itemHeight);
             
+            // Smooth scrolling interpolation
             float targetScroll = (float) this.selectedIndex;
-            float lerpFactor = (System.currentTimeMillis() - this.lastKeyPressTime < 150) ? 0.6f : 0.25f;
+            // Faster response when holding keys, slower and smoother for single presses
+            float lerpFactor = (System.currentTimeMillis() - this.lastKeyPressTime < 150) ? 0.45f : 0.15f;
             
             float diff = targetScroll - this.smoothScroll;
+            // Handle wrap-around jumping smoothly
             if (diff > total / 2.0f) diff -= total;
             if (diff < -total / 2.0f) diff += total;
 
             this.smoothScroll += diff * lerpFactor;
             
+            // Snap if close enough to avoid endless micro-animations
             if (Math.abs(targetScroll - this.smoothScroll) < 0.01f) {
                 this.smoothScroll = targetScroll;
             }
 
+            // Scissor to clip items outside the 5-slot box
             int boxTop = centerY - (2 * itemHeight) - 4;
             int boxBottom = centerY + (2 * itemHeight) + itemHeight + 2;
             guiGraphics.enableScissor(x, boxTop, x + menuWidth, boxBottom);
 
-            for (int i = -3; i <= 7; i++) {
-                int actualIndex = (int) Math.round(this.smoothScroll) + i;
-                actualIndex = (actualIndex % total + total) % total;
-
-                String name = currentMatches.get(actualIndex);
+            // Render items around the center
+            for (int i = -3; i <= 3; i++) {
+                int actualIndex = (int)Math.round(this.smoothScroll) + i;
+                float offset = actualIndex - this.smoothScroll;
                 
-                float floatOffset = i - (this.smoothScroll - Math.round(this.smoothScroll));
-                int y = centerY - (int)(floatOffset * itemHeight);
+                if (offset < -3 || offset > 3) continue;
+                
+                int wrappedIndex = (actualIndex % total + total) % total;
+                String name = currentMatches.get(wrappedIndex);
+                
+                // Y coordinate calculation: Y goes DOWN in Minecraft
+                // If offset is positive, it's below the center.
+                int y = centerY + (int)(offset * itemHeight);
 
-                if (i >= -2 && i <= 2) {
-                    if (actualIndex == this.selectedIndex) {
-                        guiGraphics.fill(x, y - 2, x + menuWidth, y + 20, 0x80FFFFFF);
-                    } else {
-                        guiGraphics.fill(x, y - 2, x + menuWidth, y + 20, 0x80000000);
-                    }
+                if (wrappedIndex == this.selectedIndex) {
+                    guiGraphics.fill(x, y - 2, x + menuWidth, y + 20, 0x80FFFFFF);
+                } else {
+                    guiGraphics.fill(x, y - 2, x + menuWidth, y + 20, 0x80000000);
                 }
 
                 if (EmojiTextureManager.has(name)) {
@@ -196,7 +200,7 @@ public class ChatScreenMixin {
             guiGraphics.disableScissor();
 
             String hint = "§7Use UP/DOWN or SCROLL, TAB to complete";
-            if (total > maxVisible) {
+            if (total > 5) {
                 hint += " §e(" + (this.selectedIndex + 1) + "/" + total + ")";
             }
             int hintY = boxTop - 12;
