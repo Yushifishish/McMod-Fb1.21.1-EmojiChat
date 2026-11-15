@@ -6,25 +6,25 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 
 public class EmojiPreviewScreen extends Screen {
-    private final ResourceLocation texture;
     private final String emojiName;
 
-    public EmojiPreviewScreen(String name, ResourceLocation texture) {
+    public EmojiPreviewScreen(String name) {
         super(Component.literal("Preview: " + name));
         this.emojiName = name;
-        this.texture = texture;
     }
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta) {
         this.renderBackground(guiGraphics, mouseX, mouseY, delta);
         
-        // Calculate size to fit screen but keep aspect ratio
-        int maxWidth = this.width - 40;
-        int maxHeight = this.height - 40;
+        // Draw original image texture (Note: We use the large texture here, but rendered at 100% scale)
+        // Since MC UI uses scaling, we render it as big as possible while fitting the screen.
+        int maxSize = Math.min(this.width, this.height) - 40;
+        ResourceLocation tex = EmojiTextureManager.getLarge(emojiName);
         
-        // Draw the image centered
-        guiGraphics.blit(texture, (this.width - 200) / 2, (this.height - 200) / 2, 0, 0, 200, 200, 200, 200);
+        if (tex != null) {
+            guiGraphics.blit(tex, (this.width - maxSize) / 2, (this.height - maxSize) / 2, 0, 0, maxSize, maxSize, maxSize, maxSize);
+        }
         
         guiGraphics.drawCenteredString(this.font, "Name: " + emojiName, this.width / 2, 20, 0xFFFFFF);
         guiGraphics.drawCenteredString(this.font, "Press ESC to close", this.width / 2, this.height - 30, 0xAAAAAA);
