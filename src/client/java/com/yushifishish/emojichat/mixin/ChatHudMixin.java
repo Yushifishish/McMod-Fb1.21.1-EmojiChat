@@ -1,40 +1,32 @@
-package com.yushifishish.emojichat.mixin;
+package com.yushifishish.emojichat.client;
 
-import com.yushifishish.emojichat.client.EmojiClickArea;
-import com.yushifishish.emojichat.client.EmojiClickData;
-import com.yushifishish.emojichat.client.EmojiTextureManager;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.ChatComponent;
-import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import com.yushifishish.emojichat.network.EmojiPayload;
+import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
+import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.minecraft.network.chat.Component;
 
-@Mixin(ChatComponent.class)
-public class ChatHudMixin {
+public class EmojiChatClient implements ClientModInitializer {
+	@Override
+	public void onInitializeClient() {
+		ClientPlayNetworking.registerGlobalReceiver(EmojiPayload.TYPE, (payload, context) -> {
+			context.client().execute(() -> EmojiTextureManager.put(payload.name(), payload.data()));
+		});
 
-    @Inject(method = "render", at = @At("TAIL"))
-    private void onRender(GuiGraphics guiGraphics, int tickDelta, int mouseX, int mouseY, boolean focused, CallbackInfo ci) {
-        EmojiClickData.CLICK_AREAS.clear();
-        
-        Minecraft mc = Minecraft.getInstance();
-        int yOffset = mc.getWindow().getGuiScaledHeight() - 40;
-        
-        for (String name : EmojiTextureManager.getAllNames()) {
-            if (EmojiTextureManager.has(name)) {
-                int size = 128; 
-                int x = 4;
-                int y = yOffset - size; 
-                
-                guiGraphics.fill(x - 2, y - 2, x + size + 2, y + size + 2, 0x80000000);
-                if (EmojiTextureManager.getLarge(name) != null) {
-                    guiGraphics.blit(EmojiTextureManager.getLarge(name), x, y, 0, 0, size, size, size, size);
-                }
-                
-                EmojiClickData.CLICK_AREAS.add(new EmojiClickArea(name, x, y, size, size));
-                break; 
-            }
-        }
-    }
+		ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
+			LocalEmojiLoader.loadFromFolder();
+		});
+
+		// Local Display Trick: Add empty lines ONLY on the local client to expand the chat height
+		ClientReceiveMessageEvents.MODIFY_GAME.register((message, signedMessage, sender, params, receptionTimestamp) -> {
+			String text = message.getString();
+			// If the message contains an emoji pattern
+			if (text.matches(".*\\[[^\\]]+\\].*")) {
+				// Append 10 empty lines to expand the chat box height locally
+				return Component.literal(text + "\n\n\n\n\n\n\n\n\n\n");
+			}
+			return message;
+		});
+	}
 }
