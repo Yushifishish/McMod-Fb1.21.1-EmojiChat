@@ -15,7 +15,6 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.List;
@@ -34,32 +33,9 @@ public class ChatScreenMixin {
     @Unique private long lastClickTime = 0;
 
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
-    private void onKeyPressed(int keyCode, int scanCode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
+    private void onKeyPressedHead(int keyCode, int scanCode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
         String text = this.input.getValue();
-        
-        // Release the slash command completely to vanilla
-        if (text.startsWith("/")) {
-            this.showSuggestions = false;
-            return; 
-        }
-
-        // Update emoji matches dynamically
-        int lastOpen = text.lastIndexOf('[');
-        if (lastOpen != -1 && text.indexOf(']', lastOpen) == -1) {
-            String query = text.substring(lastOpen + 1).toLowerCase();
-            this.currentMatches = EmojiTextureManager.getAllNames().stream()
-                    .filter(name -> name.toLowerCase().contains(query))
-                    .collect(Collectors.toList());
-            if (!this.currentMatches.isEmpty()) {
-                this.showSuggestions = true;
-                this.openBracketIndex = lastOpen;
-                if (this.selectedIndex >= this.currentMatches.size()) this.selectedIndex = 0;
-            } else {
-                this.showSuggestions = false;
-            }
-        } else {
-            this.showSuggestions = false;
-        }
+        if (text.startsWith("/")) return; 
 
         if (this.showSuggestions && this.currentMatches != null && !this.currentMatches.isEmpty()) {
             long now = System.currentTimeMillis();
@@ -84,6 +60,32 @@ public class ChatScreenMixin {
         }
     }
 
+    @Inject(method = "keyPressed", at = @At("TAIL"))
+    private void onKeyPressedTail(int keyCode, int scanCode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
+        String text = this.input.getValue();
+        if (text.startsWith("/")) {
+            this.showSuggestions = false;
+            return;
+        }
+        
+        int lastOpen = text.lastIndexOf('[');
+        if (lastOpen != -1 && text.indexOf(']', lastOpen) == -1) {
+            String query = text.substring(lastOpen + 1).toLowerCase();
+            this.currentMatches = EmojiTextureManager.getAllNames().stream()
+                    .filter(name -> name.toLowerCase().contains(query))
+                    .collect(Collectors.toList());
+            if (!this.currentMatches.isEmpty()) {
+                this.showSuggestions = true;
+                this.openBracketIndex = lastOpen;
+                if (this.selectedIndex >= this.currentMatches.size()) this.selectedIndex = 0;
+            } else {
+                this.showSuggestions = false;
+            }
+        } else {
+            this.showSuggestions = false;
+        }
+    }
+
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     private void onMouseClicked(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
         for (EmojiClickArea area : EmojiClickData.CLICK_AREAS) {
@@ -103,22 +105,8 @@ public class ChatScreenMixin {
         }
     }
 
-    @Inject(method = "mouseScrolled", at = @At("HEAD"), cancellable = true)
-    private void onMouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount, CallbackInfoReturnable<Boolean> cir) {
-        if (this.showSuggestions && this.currentMatches != null && !this.currentMatches.isEmpty()) {
-            if (verticalAmount > 0) {
-                this.selectedIndex = (this.selectedIndex - 1 + this.currentMatches.size()) % this.currentMatches.size();
-                if (this.selectedIndex == this.currentMatches.size() - 1) this.smoothScroll += this.currentMatches.size();
-            } else if (verticalAmount < 0) {
-                this.selectedIndex = (this.selectedIndex + 1) % this.currentMatches.size();
-                if (this.selectedIndex == 0) this.smoothScroll -= this.currentMatches.size();
-            }
-            cir.setReturnValue(true);
-        }
-    }
-
     @Inject(method = "render", at = @At("TAIL"))
-    private void onRender(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+    private void onRender(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta, net.minecraft.client.gui.screens.Screen screen, org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
         if (this.showSuggestions && this.currentMatches != null && !this.currentMatches.isEmpty()) {
             Minecraft mc = Minecraft.getInstance();
             int cursorPos = this.input.getCursorPosition();
