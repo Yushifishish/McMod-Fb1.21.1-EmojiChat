@@ -33,14 +33,9 @@ public class ChatScreenMixin {
 
     @Unique
     private void updateSuggestions(String text) {
-        if (!EmojiTextureManager.has("test")) EmojiTextureManager.putTest();
-        if (!EmojiTextureManager.has("test2")) EmojiTextureManager.putTest2();
-
-        // 只查找半角中括号
         int lastOpen = text.lastIndexOf('[');
 
         if (lastOpen != -1) {
-            // 只查找半角右中括号
             int closeHalf = text.indexOf(']', lastOpen);
             boolean hasClose = (closeHalf != -1);
 
