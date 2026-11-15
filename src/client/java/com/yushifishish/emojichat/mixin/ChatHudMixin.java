@@ -36,7 +36,13 @@ public class ChatHudMixin {
 
         for (int i = 0; i < trimmedMessages.size(); i++) {
             GuiMessage.Line line = trimmedMessages.get(i);
-            String plainText = line.content().getString();
+
+            StringBuilder sb = new StringBuilder();
+            line.content().accept((index, style, codePoint) -> {
+                sb.appendCodePoint(codePoint);
+                return true;
+            });
+            String plainText = sb.toString();
 
             int lineY = bottomY - (i * LINE_HEIGHT) - LINE_HEIGHT;
             if (lineY < 0) break;
