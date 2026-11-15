@@ -33,55 +33,48 @@ public class ChatScreenMixin {
     @Unique private long lastKeyPressTime = 0;
     @Unique private long lastClickTime = 0;
 
-    @Inject(method = "init", at = @At("TAIL"))
-    private void onInit(CallbackInfo ci) {
-        this.input.setResponder(this::updateSuggestions);
-    }
-
-    @Unique
-    private void updateSuggestions(String text) {
+    @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
+    private void onKeyPressed(int keyCode, int scanCode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
+        String text = this.input.getValue();
+        
+        // Release the slash command completely to vanilla
         if (text.startsWith("/")) {
             this.showSuggestions = false;
-            this.selectedIndex = 0;
-            return;
+            return; 
         }
+
+        // Update emoji matches dynamically
         int lastOpen = text.lastIndexOf('[');
         if (lastOpen != -1 && text.indexOf(']', lastOpen) == -1) {
             String query = text.substring(lastOpen + 1).toLowerCase();
-            currentMatches = EmojiTextureManager.getAllNames().stream()
+            this.currentMatches = EmojiTextureManager.getAllNames().stream()
                     .filter(name -> name.toLowerCase().contains(query))
                     .collect(Collectors.toList());
-            if (!currentMatches.isEmpty()) {
+            if (!this.currentMatches.isEmpty()) {
                 this.showSuggestions = true;
                 this.openBracketIndex = lastOpen;
-                if (this.selectedIndex >= currentMatches.size()) this.selectedIndex = 0;
-                return;
+                if (this.selectedIndex >= this.currentMatches.size()) this.selectedIndex = 0;
+            } else {
+                this.showSuggestions = false;
             }
+        } else {
+            this.showSuggestions = false;
         }
-        this.showSuggestions = false;
-        this.selectedIndex = 0;
-    }
 
-    @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
-    private void onKeyPressed(int keyCode, int scanCode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
-        this.updateSuggestions(this.input.getValue());
-        if (this.input.getValue().startsWith("/")) return;
-
-        if (this.showSuggestions && currentMatches != null && !currentMatches.isEmpty()) {
+        if (this.showSuggestions && this.currentMatches != null && !this.currentMatches.isEmpty()) {
             long now = System.currentTimeMillis();
             if (keyCode == GLFW.GLFW_KEY_DOWN) {
-                this.selectedIndex = (this.selectedIndex + 1) % currentMatches.size();
-                if (this.selectedIndex == 0) this.smoothScroll -= currentMatches.size();
+                this.selectedIndex = (this.selectedIndex + 1) % this.currentMatches.size();
+                if (this.selectedIndex == 0) this.smoothScroll -= this.currentMatches.size();
                 this.lastKeyPressTime = now;
                 cir.setReturnValue(true);
             } else if (keyCode == GLFW.GLFW_KEY_UP) {
-                this.selectedIndex = (this.selectedIndex - 1 + currentMatches.size()) % currentMatches.size();
-                if (this.selectedIndex == currentMatches.size() - 1) this.smoothScroll += currentMatches.size();
+                this.selectedIndex = (this.selectedIndex - 1 + this.currentMatches.size()) % this.currentMatches.size();
+                if (this.selectedIndex == this.currentMatches.size() - 1) this.smoothScroll += this.currentMatches.size();
                 this.lastKeyPressTime = now;
                 cir.setReturnValue(true);
             } else if (keyCode == GLFW.GLFW_KEY_TAB || keyCode == GLFW.GLFW_KEY_ENTER) {
-                String selectedName = currentMatches.get(this.selectedIndex);
-                String text = input.getValue();
+                String selectedName = this.currentMatches.get(this.selectedIndex);
                 this.input.setValue(text.substring(0, openBracketIndex) + "[" + selectedName + "]");
                 this.showSuggestions = false;
                 cir.setReturnValue(true);
@@ -112,13 +105,13 @@ public class ChatScreenMixin {
 
     @Inject(method = "mouseScrolled", at = @At("HEAD"), cancellable = true)
     private void onMouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount, CallbackInfoReturnable<Boolean> cir) {
-        if (this.showSuggestions && currentMatches != null && !currentMatches.isEmpty()) {
+        if (this.showSuggestions && this.currentMatches != null && !this.currentMatches.isEmpty()) {
             if (verticalAmount > 0) {
-                this.selectedIndex = (this.selectedIndex - 1 + currentMatches.size()) % currentMatches.size();
-                if (this.selectedIndex == currentMatches.size() - 1) this.smoothScroll += currentMatches.size();
+                this.selectedIndex = (this.selectedIndex - 1 + this.currentMatches.size()) % this.currentMatches.size();
+                if (this.selectedIndex == this.currentMatches.size() - 1) this.smoothScroll += this.currentMatches.size();
             } else if (verticalAmount < 0) {
-                this.selectedIndex = (this.selectedIndex + 1) % currentMatches.size();
-                if (this.selectedIndex == 0) this.smoothScroll -= currentMatches.size();
+                this.selectedIndex = (this.selectedIndex + 1) % this.currentMatches.size();
+                if (this.selectedIndex == 0) this.smoothScroll -= this.currentMatches.size();
             }
             cir.setReturnValue(true);
         }
@@ -126,9 +119,7 @@ public class ChatScreenMixin {
 
     @Inject(method = "render", at = @At("TAIL"))
     private void onRender(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        this.updateSuggestions(this.input.getValue());
-
-        if (this.showSuggestions && currentMatches != null && !currentMatches.isEmpty()) {
+        if (this.showSuggestions && this.currentMatches != null && !this.currentMatches.isEmpty()) {
             Minecraft mc = Minecraft.getInstance();
             int cursorPos = this.input.getCursorPosition();
             int textWidthBeforeCursor = mc.font.width(this.input.getValue().substring(0, Math.min(cursorPos, this.input.getValue().length())));
@@ -137,7 +128,7 @@ public class ChatScreenMixin {
             int x = Math.max(2, Math.min(mc.getWindow().getGuiScaledWidth() - menuWidth - 2, this.input.getX() + textWidthBeforeCursor));
             int itemHeight = 22;
             int centerY = this.input.getY() - 6 - 20 - (2 * itemHeight);
-            int total = currentMatches.size();
+            int total = this.currentMatches.size();
             
             float targetScroll = (float) this.selectedIndex;
             float lerpFactor = (System.currentTimeMillis() - this.lastKeyPressTime < 150) ? 0.45f : 0.08f;
@@ -162,16 +153,13 @@ public class ChatScreenMixin {
                 if (offset < -3 || offset > 3) continue;
                 
                 int wrappedIndex = (actualIndex % total + total) % total;
-                String name = currentMatches.get(wrappedIndex);
+                String name = this.currentMatches.get(wrappedIndex);
                 int y = centerY + (int)(offset * itemHeight);
 
                 if (wrappedIndex == this.selectedIndex) guiGraphics.fill(x, y - 2, x + menuWidth, y + 20, 0x80FFFFFF);
                 else guiGraphics.fill(x, y - 2, x + menuWidth, y + 20, 0x80000000);
 
-                // Render original texture scaled to 16x16 in menu
-                if (EmojiTextureManager.has(name)) {
-                    guiGraphics.blit(EmojiTextureManager.getTexture(name), x + 2, y + 2, 0, 0, 16, 16, 16, 16);
-                }
+                if (EmojiTextureManager.has(name)) guiGraphics.blit(EmojiTextureManager.getTexture(name), x + 2, y + 2, 0, 0, 16, 16, 16, 16);
                 guiGraphics.drawString(mc.font, "[" + name + "]", x + 24, y + 6, 0xFFFFFF, false);
             }
             guiGraphics.disableScissor();
