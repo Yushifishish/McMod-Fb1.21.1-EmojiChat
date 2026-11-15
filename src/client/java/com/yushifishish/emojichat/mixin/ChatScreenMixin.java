@@ -93,16 +93,15 @@ public class ChatScreenMixin {
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     private void onMouseClicked(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
-        // Use the shared data class
         for (EmojiClickArea area : EmojiClickData.CLICK_AREAS) {
             if (mouseX >= area.x && mouseX <= area.x + area.width && mouseY >= area.y && mouseY <= area.y + area.height) {
-                if (button == 0) { // Left click
+                if (button == 0) { 
                     long now = System.currentTimeMillis();
-                    if (now - this.lastClickTime < 300) { // Double click
+                    if (now - this.lastClickTime < 300) { 
                         Minecraft.getInstance().setScreen(new EmojiPreviewScreen(area.name));
                     }
                     this.lastClickTime = now;
-                } else if (button == 1) { // Right click
+                } else if (button == 1) { 
                     EmojiIO.saveEmoji(area.name, EmojiTextureManager.getOriginal(area.name));
                 }
                 cir.setReturnValue(true);
@@ -169,7 +168,10 @@ public class ChatScreenMixin {
                 if (wrappedIndex == this.selectedIndex) guiGraphics.fill(x, y - 2, x + menuWidth, y + 20, 0x80FFFFFF);
                 else guiGraphics.fill(x, y - 2, x + menuWidth, y + 20, 0x80000000);
 
-                if (EmojiTextureManager.has(name)) guiGraphics.blit(EmojiTextureManager.getSmall(name), x + 2, y + 2, 0, 0, 16, 16, 16, 16);
+                // Render original texture scaled to 16x16 in menu
+                if (EmojiTextureManager.has(name)) {
+                    guiGraphics.blit(EmojiTextureManager.getTexture(name), x + 2, y + 2, 0, 0, 16, 16, 16, 16);
+                }
                 guiGraphics.drawString(mc.font, "[" + name + "]", x + 24, y + 6, 0xFFFFFF, false);
             }
             guiGraphics.disableScissor();
