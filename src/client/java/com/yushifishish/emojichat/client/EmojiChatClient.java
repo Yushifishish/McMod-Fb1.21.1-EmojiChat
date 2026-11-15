@@ -2,6 +2,7 @@ package com.yushifishish.emojichat.client;
 
 import com.yushifishish.emojichat.network.EmojiPayload;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 
 public class EmojiChatClient implements ClientModInitializer {
@@ -10,6 +11,8 @@ public class EmojiChatClient implements ClientModInitializer {
 		ClientPlayNetworking.registerGlobalReceiver(EmojiPayload.TYPE, (payload, context) -> {
 			context.client().execute(() -> EmojiTextureManager.put(payload.name(), payload.data()));
 		});
-		LocalEmojiLoader.loadFromFolder(); 
+		ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
+			LocalEmojiLoader.loadFromFolder();
+		});
 	}
 }
