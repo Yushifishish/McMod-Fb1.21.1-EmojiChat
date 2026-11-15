@@ -24,25 +24,19 @@ public class ChatHudMixin {
         Minecraft mc = Minecraft.getInstance();
         int yOffset = mc.getWindow().getGuiScaledHeight() - 40;
         
-        // Simplified test: Render the first available emoji as a 128x128 image at the bottom left.
-        // This verifies the 128x128 rendering and click area logic.
         for (String name : EmojiTextureManager.getAllNames()) {
             if (EmojiTextureManager.has(name)) {
                 int size = 128; 
                 int x = 4;
                 int y = yOffset - size; 
                 
-                // Background
                 guiGraphics.fill(x - 2, y - 2, x + size + 2, y + size + 2, 0x80000000);
-                
-                // Image
                 if (EmojiTextureManager.getLarge(name) != null) {
                     guiGraphics.blit(EmojiTextureManager.getLarge(name), x, y, 0, 0, size, size, size, size);
                 }
                 
-                // Store click area
                 CLICK_AREAS.add(new EmojiClickArea(name, x, y, size, size));
-                break; // Only render one for testing
+                break; 
             }
         }
     }
