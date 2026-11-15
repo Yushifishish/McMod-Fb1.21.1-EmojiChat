@@ -1,6 +1,7 @@
 package com.yushifishish.emojichat.mixin;
 
 import com.yushifishish.emojichat.client.EmojiRenderCache;
+import com.yushifishish.emojichat.client.EmojiTextureManager;
 import net.minecraft.client.gui.components.ChatComponent;
 import net.minecraft.network.chat.Component;
 import org.spongepowered.asm.mixin.Mixin;
@@ -20,11 +21,13 @@ public class ChatHudAddMessageMixin {
         Matcher matcher = pattern.matcher(text);
         
         if (matcher.find()) {
-            // 保存名字到缓存中
-            EmojiRenderCache.LAST_EMOJI = matcher.group(1);
-            
-            String fakeLines = "\n\u3000\n\u3000\n\u3000\n\u3000\n\u3000\n\u3000\n\u3000\n\u3000\n\u3000\n\u3000";
-            return Component.literal(text + fakeLines);
+            String emojiName = matcher.group(1);
+            // 核心修复：必须确保这个文字是合法的表情名字，才加换行
+            if (EmojiTextureManager.has(emojiName)) {
+                EmojiRenderCache.LAST_EMOJI = emojiName;
+                String fakeLines = "\n\u3000\n\u3000\n\u3000\n\u3000\n\u3000\n\u3000\n\u3000\n\u3000\n\u3000\n\u3000";
+                return Component.literal(text + fakeLines);
+            }
         }
         return message;
     }
