@@ -34,9 +34,12 @@ public class ChatScreenMixin {
     @Unique private long lastClickTime = 0;
 
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
-    private void onKeyPressedHead(int keyCode, int scanCode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
+    private void onKeyPressed(int keyCode, int scanCode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
         String text = this.input.getValue();
-        if (text.startsWith("/")) return; 
+        if (text.startsWith("/")) { 
+            this.showSuggestions = false; 
+            return; 
+        }
 
         if (this.showSuggestions && this.currentMatches != null && !this.currentMatches.isEmpty()) {
             long now = System.currentTimeMillis();
@@ -61,32 +64,6 @@ public class ChatScreenMixin {
         }
     }
 
-    @Inject(method = "keyPressed", at = @At("TAIL"))
-    private void onKeyPressedTail(int keyCode, int scanCode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
-        String text = this.input.getValue();
-        if (text.startsWith("/")) {
-            this.showSuggestions = false;
-            return;
-        }
-        
-        int lastOpen = text.lastIndexOf('[');
-        if (lastOpen != -1 && text.indexOf(']', lastOpen) == -1) {
-            String query = text.substring(lastOpen + 1).toLowerCase();
-            this.currentMatches = EmojiTextureManager.getAllNames().stream()
-                    .filter(name -> name.toLowerCase().contains(query))
-                    .collect(Collectors.toList());
-            if (!this.currentMatches.isEmpty()) {
-                this.showSuggestions = true;
-                this.openBracketIndex = lastOpen;
-                if (this.selectedIndex >= this.currentMatches.size()) this.selectedIndex = 0;
-            } else {
-                this.showSuggestions = false;
-            }
-        } else {
-            this.showSuggestions = false;
-        }
-    }
-
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     private void onMouseClicked(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
         for (EmojiClickArea area : EmojiClickData.CLICK_AREAS) {
@@ -108,17 +85,40 @@ public class ChatScreenMixin {
 
     @Inject(method = "render", at = @At("TAIL"))
     private void onRender(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+        String text = this.input.getValue();
+
+        if (text.startsWith("/")) {
+            this.showSuggestions = false;
+        } else {
+            int lastOpen = text.lastIndexOf('[');
+            if (lastOpen != -1 && text.indexOf(']', lastOpen) == -1) {
+                String query = text.substring(lastOpen + 1).toLowerCase();
+                this.currentMatches = EmojiTextureManager.getAllNames().stream()
+                        .filter(name -> name.toLowerCase().contains(query))
+                        .collect(Collectors.toList());
+                if (!this.currentMatches.isEmpty()) {
+                    this.showSuggestions = true;
+                    this.openBracketIndex = lastOpen;
+                    if (this.selectedIndex >= this.currentMatches.size()) this.selectedIndex = 0;
+                } else {
+                    this.showSuggestions = false;
+                }
+            } else {
+                this.showSuggestions = false;
+            }
+        }
+
         if (this.showSuggestions && this.currentMatches != null && !this.currentMatches.isEmpty()) {
             Minecraft mc = Minecraft.getInstance();
             int cursorPos = this.input.getCursorPosition();
-            int textWidthBeforeCursor = mc.font.width(this.input.getValue().substring(0, Math.min(cursorPos, this.input.getValue().length())));
-            
+            int textWidthBeforeCursor = mc.font.width(text.substring(0, Math.min(cursorPos, text.length())));
+
             int menuWidth = 120;
             int x = Math.max(2, Math.min(mc.getWindow().getGuiScaledWidth() - menuWidth - 2, this.input.getX() + textWidthBeforeCursor));
             int itemHeight = 22;
             int centerY = this.input.getY() - 6 - 20 - (2 * itemHeight);
             int total = this.currentMatches.size();
-            
+
             float targetScroll = (float) this.selectedIndex;
             float lerpFactor = (System.currentTimeMillis() - this.lastKeyPressTime < 150) ? 0.45f : 0.08f;
             float diff = targetScroll - this.smoothScroll;
@@ -128,7 +128,7 @@ public class ChatScreenMixin {
             float moveAmount = diff * lerpFactor;
             if (moveAmount > 1.0f) moveAmount = 1.0f;
             else if (moveAmount < -1.0f) moveAmount = -1.0f;
-            
+
             this.smoothScroll += moveAmount;
             if (Math.abs(targetScroll - this.smoothScroll) < 0.02f) this.smoothScroll = targetScroll;
 
@@ -140,7 +140,7 @@ public class ChatScreenMixin {
                 int actualIndex = (int)Math.round(this.smoothScroll) + i;
                 float offset = actualIndex - this.smoothScroll;
                 if (offset < -3 || offset > 3) continue;
-                
+
                 int wrappedIndex = (actualIndex % total + total) % total;
                 String name = this.currentMatches.get(wrappedIndex);
                 int y = centerY + (int)(offset * itemHeight);
