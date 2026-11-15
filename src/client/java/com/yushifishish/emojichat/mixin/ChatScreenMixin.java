@@ -26,13 +26,20 @@ public class ChatScreenMixin {
     @Unique private int selectedIndex = 0;
     @Unique private int openBracketIndex = -1;
 
-    @Inject(method = "init", at = @At("TAIL"))
-    private void onInit(CallbackInfo ci) {
-        this.input.setResponder(this::updateSuggestions);
-    }
+    @Unique private float smoothScroll = 0.0f;
+    @Unique private long lastKeyPressTime = 0;
 
     @Unique
     private void updateSuggestions(String text) {
+        // If the user is typing a command, completely disable emoji suggestions to let vanilla handle it
+        if (text.startsWith("/")) {
+            this.showSuggestions = false;
+            this.openBracketIndex = -1;
+            this.selectedIndex = 0;
+            this.smoothScroll = 0;
+            return;
+        }
+
         int lastOpen = text.lastIndexOf('[');
 
         if (lastOpen != -1) {
@@ -51,6 +58,7 @@ public class ChatScreenMixin {
                     this.openBracketIndex = lastOpen;
                     if (this.selectedIndex >= currentMatches.size()) {
                         this.selectedIndex = 0;
+                        this.smoothScroll = 0; 
                     }
                     return;
                 }
@@ -60,16 +68,35 @@ public class ChatScreenMixin {
         this.showSuggestions = false;
         this.openBracketIndex = -1;
         this.selectedIndex = 0;
+        this.smoothScroll = 0;
     }
 
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
     private void onKeyPressed(int keyCode, int scanCode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
+        // Update state based on current text
+        this.updateSuggestions(this.input.getValue());
+
+        // If it's a command, do not intercept anything
+        if (this.input.getValue().startsWith("/")) {
+            return;
+        }
+
         if (this.showSuggestions && currentMatches != null && !currentMatches.isEmpty()) {
+            long now = System.currentTimeMillis();
+            
             if (keyCode == GLFW.GLFW_KEY_DOWN) {
                 this.selectedIndex = (this.selectedIndex + 1) % currentMatches.size();
+                if (this.selectedIndex == 0) {
+                    this.smoothScroll -= currentMatches.size();
+                }
+                this.lastKeyPressTime = now;
                 cir.setReturnValue(true);
             } else if (keyCode == GLFW.GLFW_KEY_UP) {
                 this.selectedIndex = (this.selectedIndex - 1 + currentMatches.size()) % currentMatches.size();
+                if (this.selectedIndex == currentMatches.size() - 1) {
+                    this.smoothScroll += currentMatches.size();
+                }
+                this.lastKeyPressTime = now;
                 cir.setReturnValue(true);
             } else if (keyCode == GLFW.GLFW_KEY_TAB || keyCode == GLFW.GLFW_KEY_ENTER) {
                 String selectedName = currentMatches.get(this.selectedIndex);
@@ -89,77 +116,91 @@ public class ChatScreenMixin {
     @Inject(method = "mouseScrolled", at = @At("HEAD"), cancellable = true)
     private void onMouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount, CallbackInfoReturnable<Boolean> cir) {
         if (this.showSuggestions && currentMatches != null && !currentMatches.isEmpty()) {
+            long now = System.currentTimeMillis();
             if (verticalAmount > 0) {
                 this.selectedIndex = (this.selectedIndex - 1 + currentMatches.size()) % currentMatches.size();
+                if (this.selectedIndex == currentMatches.size() - 1) this.smoothScroll += currentMatches.size();
             } else if (verticalAmount < 0) {
                 this.selectedIndex = (this.selectedIndex + 1) % currentMatches.size();
+                if (this.selectedIndex == 0) this.smoothScroll -= currentMatches.size();
             }
+            this.lastKeyPressTime = now;
             cir.setReturnValue(true);
         }
     }
 
     @Inject(method = "render", at = @At("TAIL"))
     private void onRender(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+        // Update state continuously without overriding vanilla responder
+        this.updateSuggestions(this.input.getValue());
+
         if (this.showSuggestions && currentMatches != null && !currentMatches.isEmpty()) {
             Minecraft mc = Minecraft.getInstance();
             
-            // Calculate X position based on cursor location
             String text = this.input.getValue();
             int cursorPos = this.input.getCursorPosition();
-            // Get text width before the cursor
             int textWidthBeforeCursor = mc.font.width(text.substring(0, Math.min(cursorPos, text.length())));
             
             int menuWidth = 120;
             int screenWidth = mc.getWindow().getGuiScaledWidth();
-            
-            // The X position of the cursor on screen
             int cursorX = this.input.getX() + textWidthBeforeCursor;
-            
-            // Clamp the menu to fit within the screen bounds
             int x = Math.max(2, Math.min(screenWidth - menuWidth - 2, cursorX));
             
-            // Y position remains relative to the input box (above it)
-            int baseY = this.input.getY() - 28;
-
-            // Calculate scroll window
             int total = currentMatches.size();
             int maxVisible = 5; 
-            int startIndex = 0;
-            
-            if (this.selectedIndex >= maxVisible) {
-                startIndex = this.selectedIndex - maxVisible + 1;
-            }
-            if (startIndex > total - maxVisible) {
-                startIndex = Math.max(0, total - maxVisible);
-            }
-            
-            int endIndex = Math.min(total, startIndex + maxVisible);
-            int displayCount = endIndex - startIndex;
+            int itemHeight = 22;
 
-            for (int i = startIndex; i < endIndex; i++) {
-                String name = currentMatches.get(i);
-                int displayIndex = i - startIndex; 
-                int y = baseY - (displayIndex * 22);
+            int centerY = this.input.getY() - 6 - 20 - (2 * itemHeight);
+            
+            float targetScroll = (float) this.selectedIndex;
+            float lerpFactor = (System.currentTimeMillis() - this.lastKeyPressTime < 150) ? 0.6f : 0.25f;
+            
+            float diff = targetScroll - this.smoothScroll;
+            if (diff > total / 2.0f) diff -= total;
+            if (diff < -total / 2.0f) diff += total;
+
+            this.smoothScroll += diff * lerpFactor;
+            
+            if (Math.abs(targetScroll - this.smoothScroll) < 0.01f) {
+                this.smoothScroll = targetScroll;
+            }
+
+            int boxTop = centerY - (2 * itemHeight) - 4;
+            int boxBottom = centerY + (2 * itemHeight) + itemHeight + 2;
+            guiGraphics.enableScissor(x, boxTop, x + menuWidth, boxBottom);
+
+            for (int i = -3; i <= 7; i++) {
+                int actualIndex = (int) Math.round(this.smoothScroll) + i;
+                actualIndex = (actualIndex % total + total) % total;
+
+                String name = currentMatches.get(actualIndex);
                 
-                if (i == this.selectedIndex) {
-                    guiGraphics.fill(x, y - 2, x + menuWidth, y + 20, 0x80FFFFFF);
-                } else {
-                    guiGraphics.fill(x, y - 2, x + menuWidth, y + 20, 0x80000000);
+                float floatOffset = i - (this.smoothScroll - Math.round(this.smoothScroll));
+                int y = centerY - (int)(floatOffset * itemHeight);
+
+                if (i >= -2 && i <= 2) {
+                    if (actualIndex == this.selectedIndex) {
+                        guiGraphics.fill(x, y - 2, x + menuWidth, y + 20, 0x80FFFFFF);
+                    } else {
+                        guiGraphics.fill(x, y - 2, x + menuWidth, y + 20, 0x80000000);
+                    }
                 }
-                
+
                 if (EmojiTextureManager.has(name)) {
                     guiGraphics.blit(EmojiTextureManager.get(name), x + 2, y + 2, 0, 0, 16, 16, 16, 16);
                 }
                 
                 guiGraphics.drawString(mc.font, "[" + name + "]", x + 24, y + 6, 0xFFFFFF, false);
             }
-            
-            // Bottom hint and page indicator
+
+            guiGraphics.disableScissor();
+
             String hint = "§7Use UP/DOWN or SCROLL, TAB to complete";
             if (total > maxVisible) {
                 hint += " §e(" + (this.selectedIndex + 1) + "/" + total + ")";
             }
-            guiGraphics.drawString(mc.font, hint, x + 2, baseY - (displayCount * 22) - 10, 0xAAAAAA, false);
+            int hintY = boxTop - 12;
+            guiGraphics.drawString(mc.font, hint, x + 2, hintY, 0xAAAAAA, false);
         }
     }
 }
