@@ -3,7 +3,7 @@ package com.yushifishish.emojichat.mixin;
 import com.yushifishish.emojichat.client.EmojiRenderCache;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.TextFieldWidget;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.ChatScreen;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -18,7 +18,7 @@ import java.util.List;
 @Mixin(ChatScreen.class)
 public class ChatScreenMixin {
 
-    @Shadow protected TextFieldWidget chatField;
+    @Shadow protected EditBox chatField;
 
     private boolean showEmojiMenu = false;
     private List<String> currentMatches = new ArrayList<>();
