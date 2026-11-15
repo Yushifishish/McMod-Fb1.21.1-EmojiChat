@@ -5,8 +5,8 @@
   "compatibilityLevel": "JAVA_21",
   "client": [
     "ChatScreenMixin",
-    "ChatHudMixin",
-    "ChatHudAddMessageMixin"
+    "ChatHudAddMessageMixin",
+    "ChatHudRendererMixin"
   ],
   "injectors": { "defaultRequire": 1 }
 }
