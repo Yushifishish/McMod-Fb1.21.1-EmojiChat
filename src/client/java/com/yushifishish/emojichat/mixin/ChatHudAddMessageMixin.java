@@ -17,6 +17,7 @@ public class ChatHudAddMessageMixin {
         String text = message.getString();
         if (text.matches(".*\\[[^\\]]+\\].*")) {
             EmojiChat.LOGGER.info("EMOJI DEBUG: addMessage intercepted! " + text);
+            // Add 10 empty lines (full-width spaces to prevent folding) to expand the chat height
             String fakeLines = "\n\u3000\n\u3000\n\u3000\n\u3000\n\u3000\n\u3000\n\u3000\n\u3000\n\u3000\n\u3000";
             return Component.literal(text + fakeLines);
         }
