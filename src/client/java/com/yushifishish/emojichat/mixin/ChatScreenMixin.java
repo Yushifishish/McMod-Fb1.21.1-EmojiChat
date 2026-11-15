@@ -33,19 +33,16 @@ public class ChatScreenMixin {
 
     @Unique
     private void updateSuggestions(String text) {
-        // 懒加载测试表情
         if (!EmojiTextureManager.has("test")) EmojiTextureManager.putTest();
         if (!EmojiTextureManager.has("test2")) EmojiTextureManager.putTest2();
 
-        // 兼容半角 [ 和全角 【
-        int lastOpenHalf = text.lastIndexOf('[');
-        int lastOpenFull = text.lastIndexOf('【');
-        int lastOpen = Math.max(lastOpenHalf, lastOpenFull);
+        // 只查找半角中括号
+        int lastOpen = text.lastIndexOf('[');
 
         if (lastOpen != -1) {
+            // 只查找半角右中括号
             int closeHalf = text.indexOf(']', lastOpen);
-            int closeFull = text.indexOf('】', lastOpen);
-            boolean hasClose = (closeHalf != -1) || (closeFull != -1);
+            boolean hasClose = (closeHalf != -1);
 
             if (!hasClose) {
                 String query = text.substring(lastOpen + 1).toLowerCase();
@@ -97,9 +94,11 @@ public class ChatScreenMixin {
     @Inject(method = "render", at = @At("TAIL"))
     private void onRender(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         if (this.showSuggestions && currentMatches != null && !currentMatches.isEmpty()) {
-            int x = 4;
-            int baseY = this.input.getY() - 28;
             Minecraft mc = Minecraft.getInstance();
+            
+            int screenWidth = mc.getWindow().getGuiScaledWidth();
+            int x = screenWidth - 124; 
+            int baseY = this.input.getY() - 28;
 
             int displayCount = Math.min(currentMatches.size(), 5);
             for (int i = 0; i < displayCount; i++) {
