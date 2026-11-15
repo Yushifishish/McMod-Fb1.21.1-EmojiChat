@@ -18,7 +18,7 @@ public class EmojiPreviewScreen extends Screen {
         this.renderBackground(guiGraphics, mouseX, mouseY, delta);
         
         int maxSize = Math.min(this.width, this.height) - 40;
-        ResourceLocation tex = EmojiTextureManager.getLarge(emojiName);
+        ResourceLocation tex = EmojiTextureManager.getTexture(emojiName);
         
         if (tex != null) {
             guiGraphics.blit(tex, (this.width - maxSize) / 2, (this.height - maxSize) / 2, 0, 0, maxSize, maxSize, maxSize, maxSize);
