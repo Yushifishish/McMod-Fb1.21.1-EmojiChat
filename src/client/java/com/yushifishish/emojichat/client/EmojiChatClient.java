@@ -10,5 +10,6 @@ public class EmojiChatClient implements ClientModInitializer {
 		ClientPlayNetworking.registerGlobalReceiver(EmojiPayload.TYPE, (payload, context) -> {
 			context.client().execute(() -> EmojiTextureManager.put(payload.name(), payload.data()));
 		});
+		LocalEmojiLoader.loadFromFolder(); 
 	}
 }
