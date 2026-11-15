@@ -25,9 +25,9 @@ public class ChatScreenMixin {
     @Unique private List<String> matches;
     @Unique private int selectedIndex = 0;
     @Unique private int lastOpen = -1;
-    
-    @Inject(method = "tick", at = @At("HEAD"))
-    private void onTick(CallbackInfo ci) {
+
+    @Inject(method = "render", at = @At("HEAD"))
+    private void onRenderHead(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         String text = this.input.getValue();
         
         if (text.startsWith("/")) {
@@ -54,8 +54,7 @@ public class ChatScreenMixin {
             showMenu = false;
         }
     }
-    
-    
+
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
     private void onKeyPressed(int keyCode, int scanCode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
         if (!showMenu || matches == null || matches.isEmpty()) return;
@@ -75,9 +74,9 @@ public class ChatScreenMixin {
             showMenu = false;
         }
     }
-    
+
     @Inject(method = "render", at = @At("TAIL"))
-    private void onRender(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+    private void onRenderTail(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         if (!showMenu || matches == null || matches.isEmpty()) return;
         
         Minecraft mc = Minecraft.getInstance();
