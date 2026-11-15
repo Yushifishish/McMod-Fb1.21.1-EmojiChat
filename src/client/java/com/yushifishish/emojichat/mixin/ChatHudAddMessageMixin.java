@@ -13,15 +13,17 @@ import java.util.regex.Pattern;
 @Mixin(ChatComponent.class)
 public class ChatHudAddMessageMixin {
 
-    @ModifyVariable(method = "addMessage(Lnet/minecraft/network/chat/Component;Lnet/minecraft/network/chat/MessageSignature;Lnet/minecraft/client/GuiMessageTag;)V", at = @At("HEAD"), argsOnly = true, ordinal = 0)
+    @ModifyVariable(
+        method = "addMessage(Lnet/minecraft/network/chat/Component;Lnet/minecraft/network/chat/MessageSignature;Lnet/minecraft/client/GuiMessageTag;)V",
+        at = @At("HEAD"), argsOnly = true, ordinal = 0
+    )
     private Component modifyAddedMessage(Component message) {
         String text = message.getString();
         Pattern pattern = Pattern.compile("\\[([^\\]]+)\\]");
         Matcher matcher = pattern.matcher(text);
-        
+
         while (matcher.find()) {
             String emojiName = matcher.group(1);
-            // Only expand if the name is an actual registered emoji
             if (EmojiTextureManager.has(emojiName)) {
                 String fakeLines = "\n\u3000\n\u3000\n\u3000\n\u3000\n\u3000\n\u3000\n\u3000\n\u3000\n\u3000\n\u3000";
                 return Component.literal(text + fakeLines);
