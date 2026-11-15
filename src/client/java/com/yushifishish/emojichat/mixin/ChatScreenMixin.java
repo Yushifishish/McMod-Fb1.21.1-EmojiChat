@@ -1,6 +1,7 @@
 package com.yushifishish.emojichat.mixin;
 
 import com.yushifishish.emojichat.client.EmojiClickArea;
+import com.yushifishish.emojichat.client.EmojiClickData;
 import com.yushifishish.emojichat.client.EmojiIO;
 import com.yushifishish.emojichat.client.EmojiPreviewScreen;
 import com.yushifishish.emojichat.client.EmojiTextureManager;
@@ -92,7 +93,8 @@ public class ChatScreenMixin {
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     private void onMouseClicked(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
-        for (EmojiClickArea area : ChatHudMixin.CLICK_AREAS) {
+        // Use the shared data class
+        for (EmojiClickArea area : EmojiClickData.CLICK_AREAS) {
             if (mouseX >= area.x && mouseX <= area.x + area.width && mouseY >= area.y && mouseY <= area.y + area.height) {
                 if (button == 0) { // Left click
                     long now = System.currentTimeMillis();
