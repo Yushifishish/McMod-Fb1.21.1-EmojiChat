@@ -3,9 +3,9 @@
   "minVersion": "0.8",
   "package": "com.yushifishish.emojichat.mixin",
   "compatibilityLevel": "JAVA_21",
+  "refmap": "emojichat.refmap.json",
   "client": [
     "ChatScreenMixin",
     "ChatHudMixin"
-  ],
-  "injectors": { "defaultRequire": 1 }
+  ]
 }
