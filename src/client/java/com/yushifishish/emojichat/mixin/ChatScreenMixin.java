@@ -15,6 +15,7 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.List;
@@ -106,7 +107,7 @@ public class ChatScreenMixin {
     }
 
     @Inject(method = "render", at = @At("TAIL"))
-    private void onRender(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta, net.minecraft.client.gui.screens.Screen screen, org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
+    private void onRender(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         if (this.showSuggestions && this.currentMatches != null && !this.currentMatches.isEmpty()) {
             Minecraft mc = Minecraft.getInstance();
             int cursorPos = this.input.getCursorPosition();
