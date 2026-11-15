@@ -17,8 +17,6 @@ public class EmojiPreviewScreen extends Screen {
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta) {
         this.renderBackground(guiGraphics, mouseX, mouseY, delta);
         
-        // Draw original image texture (Note: We use the large texture here, but rendered at 100% scale)
-        // Since MC UI uses scaling, we render it as big as possible while fitting the screen.
         int maxSize = Math.min(this.width, this.height) - 40;
         ResourceLocation tex = EmojiTextureManager.getLarge(emojiName);
         
