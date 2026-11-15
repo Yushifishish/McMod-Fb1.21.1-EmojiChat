@@ -1,42 +1,38 @@
 package com.yushifishish.emojichat.client;
 
-import com.yushifishish.emojichat.EmojiChat;
-import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Arrays;
+public class EmojiPreviewScreen extends Screen {
+    private final String emojiName;
 
-public class EmojiIO {
-    public static void saveEmoji(String name, byte[] data) {
-        Path configDir = FabricLoader.getInstance().getConfigDir().resolve("emoji-chat").resolve("custom");
-        Path targetFile = configDir.resolve(name + ".png");
+    public EmojiPreviewScreen(String name) {
+        super(Component.literal("Preview: " + name));
+        this.emojiName = name;
+    }
 
-        try {
-            if (Files.exists(targetFile)) {
-                byte[] existingData = Files.readAllBytes(targetFile);
-                if (Arrays.equals(existingData, data)) {
-                    Minecraft.getInstance().player.displayClientMessage(Component.literal("§e[Emoji] Image already exists and is identical."), false);
-                    return;
-                }
-                
-                // If exists but different, prompt overwrite via command or just overwrite for simplicity in this version
-                // To handle "prompt selection" in a GUI-free way, we use a system message warning.
-                Minecraft.getInstance().player.displayClientMessage(Component.literal("§c[Emoji] Overwriting existing image: " + name), false);
-            }
-
-            Files.createDirectories(configDir);
-            Files.write(targetFile, data);
-            Minecraft.getInstance().player.displayClientMessage(Component.literal("§a[Emoji] Saved: " + name), false);
-            
-            // Reload to apply
-            LocalEmojiLoader.loadFromFolder();
-
-        } catch (Exception e) {
-            EmojiChat.LOGGER.error("Failed to save emoji", e);
-            Minecraft.getInstance().player.displayClientMessage(Component.literal("§c[Emoji] Failed to save image."), false);
+    @Override
+    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta) {
+        this.renderBackground(guiGraphics, mouseX, mouseY, delta);
+        
+        // Draw original image texture (Note: We use the large texture here, but rendered at 100% scale)
+        // Since MC UI uses scaling, we render it as big as possible while fitting the screen.
+        int maxSize = Math.min(this.width, this.height) - 40;
+        ResourceLocation tex = EmojiTextureManager.getLarge(emojiName);
+        
+        if (tex != null) {
+            guiGraphics.blit(tex, (this.width - maxSize) / 2, (this.height - maxSize) / 2, 0, 0, maxSize, maxSize, maxSize, maxSize);
         }
+        
+        guiGraphics.drawCenteredString(this.font, "Name: " + emojiName, this.width / 2, 20, 0xFFFFFF);
+        guiGraphics.drawCenteredString(this.font, "Press ESC to close", this.width / 2, this.height - 30, 0xAAAAAA);
+        super.render(guiGraphics, mouseX, mouseY, delta);
+    }
+
+    @Override
+    public boolean isPauseScreen() {
+        return false;
     }
 }
