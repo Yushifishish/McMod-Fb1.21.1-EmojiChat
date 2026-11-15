@@ -80,7 +80,15 @@ public class ChatScreenMixin {
         if (!showMenu || matches == null || matches.isEmpty()) return;
         
         Minecraft mc = Minecraft.getInstance();
-        int x = this.input.getX();
+
+        String text = this.input.getValue();
+        int cursorPos = this.input.getCursorPosition();
+        String textBeforeCursor = text.substring(0, Math.min(cursorPos, text.length()));
+        int textWidth = mc.font.width(textBeforeCursor);
+        int x = this.input.getX() + textWidth;
+        int screenWidth = mc.getWindow().getGuiScaledWidth();
+        x = Math.max(2, Math.min(screenWidth - 120 - 2, x));
+        
         int baseY = this.input.getY() - 28;
 
         for (int i = 0; i < Math.min(matches.size(), 5); i++) {
