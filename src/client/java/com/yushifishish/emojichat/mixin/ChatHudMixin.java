@@ -1,6 +1,7 @@
 package com.yushifishish.emojichat.mixin;
 
 import com.yushifishish.emojichat.client.EmojiClickArea;
+import com.yushifishish.emojichat.client.EmojiClickData;
 import com.yushifishish.emojichat.client.EmojiTextureManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -10,16 +11,12 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import java.util.ArrayList;
-import java.util.List;
-
 @Mixin(ChatComponent.class)
 public class ChatHudMixin {
-    public static List<EmojiClickArea> CLICK_AREAS = new ArrayList<>();
 
     @Inject(method = "render", at = @At("TAIL"))
     private void onRender(GuiGraphics guiGraphics, int tickDelta, int mouseX, int mouseY, boolean focused, CallbackInfo ci) {
-        CLICK_AREAS.clear();
+        EmojiClickData.CLICK_AREAS.clear();
         
         Minecraft mc = Minecraft.getInstance();
         int yOffset = mc.getWindow().getGuiScaledHeight() - 40;
@@ -35,7 +32,7 @@ public class ChatHudMixin {
                     guiGraphics.blit(EmojiTextureManager.getLarge(name), x, y, 0, 0, size, size, size, size);
                 }
                 
-                CLICK_AREAS.add(new EmojiClickArea(name, x, y, size, size));
+                EmojiClickData.CLICK_AREAS.add(new EmojiClickArea(name, x, y, size, size));
                 break; 
             }
         }
