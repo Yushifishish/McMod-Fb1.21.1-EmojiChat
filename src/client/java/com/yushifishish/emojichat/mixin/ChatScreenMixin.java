@@ -86,24 +86,65 @@ public class ChatScreenMixin {
         }
     }
 
+    @Inject(method = "mouseScrolled", at = @At("HEAD"), cancellable = true)
+    private void onMouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount, CallbackInfoReturnable<Boolean> cir) {
+        if (this.showSuggestions && currentMatches != null && !currentMatches.isEmpty()) {
+            if (verticalAmount > 0) {
+                this.selectedIndex = (this.selectedIndex - 1 + currentMatches.size()) % currentMatches.size();
+            } else if (verticalAmount < 0) {
+                this.selectedIndex = (this.selectedIndex + 1) % currentMatches.size();
+            }
+            cir.setReturnValue(true);
+        }
+    }
+
     @Inject(method = "render", at = @At("TAIL"))
     private void onRender(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         if (this.showSuggestions && currentMatches != null && !currentMatches.isEmpty()) {
             Minecraft mc = Minecraft.getInstance();
             
+            // Calculate X position based on cursor location
+            String text = this.input.getValue();
+            int cursorPos = this.input.getCursorPosition();
+            // Get text width before the cursor
+            int textWidthBeforeCursor = mc.font.width(text.substring(0, Math.min(cursorPos, text.length())));
+            
+            int menuWidth = 120;
             int screenWidth = mc.getWindow().getGuiScaledWidth();
-            int x = screenWidth - 124; 
+            
+            // The X position of the cursor on screen
+            int cursorX = this.input.getX() + textWidthBeforeCursor;
+            
+            // Clamp the menu to fit within the screen bounds
+            int x = Math.max(2, Math.min(screenWidth - menuWidth - 2, cursorX));
+            
+            // Y position remains relative to the input box (above it)
             int baseY = this.input.getY() - 28;
 
-            int displayCount = Math.min(currentMatches.size(), 5);
-            for (int i = 0; i < displayCount; i++) {
+            // Calculate scroll window
+            int total = currentMatches.size();
+            int maxVisible = 5; 
+            int startIndex = 0;
+            
+            if (this.selectedIndex >= maxVisible) {
+                startIndex = this.selectedIndex - maxVisible + 1;
+            }
+            if (startIndex > total - maxVisible) {
+                startIndex = Math.max(0, total - maxVisible);
+            }
+            
+            int endIndex = Math.min(total, startIndex + maxVisible);
+            int displayCount = endIndex - startIndex;
+
+            for (int i = startIndex; i < endIndex; i++) {
                 String name = currentMatches.get(i);
-                int y = baseY - (i * 22);
+                int displayIndex = i - startIndex; 
+                int y = baseY - (displayIndex * 22);
                 
                 if (i == this.selectedIndex) {
-                    guiGraphics.fill(x, y - 2, x + 120, y + 20, 0x80FFFFFF);
+                    guiGraphics.fill(x, y - 2, x + menuWidth, y + 20, 0x80FFFFFF);
                 } else {
-                    guiGraphics.fill(x, y - 2, x + 120, y + 20, 0x80000000);
+                    guiGraphics.fill(x, y - 2, x + menuWidth, y + 20, 0x80000000);
                 }
                 
                 if (EmojiTextureManager.has(name)) {
@@ -113,7 +154,12 @@ public class ChatScreenMixin {
                 guiGraphics.drawString(mc.font, "[" + name + "]", x + 24, y + 6, 0xFFFFFF, false);
             }
             
-            guiGraphics.drawString(mc.font, "§7Use UP/DOWN to select, TAB to complete", x + 2, baseY - (displayCount * 22) - 10, 0xAAAAAA, false);
+            // Bottom hint and page indicator
+            String hint = "§7Use UP/DOWN or SCROLL, TAB to complete";
+            if (total > maxVisible) {
+                hint += " §e(" + (this.selectedIndex + 1) + "/" + total + ")";
+            }
+            guiGraphics.drawString(mc.font, hint, x + 2, baseY - (displayCount * 22) - 10, 0xAAAAAA, false);
         }
     }
 }
