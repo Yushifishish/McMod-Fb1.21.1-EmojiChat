@@ -1,4 +1,4 @@
-package com.yushifishish.emojichat.mixin;
+ package com.yushifishish.emojichat.mixin;
 
 import com.yushifishish.emojichat.EmojiChat;
 import com.yushifishish.emojichat.client.EmojiClickArea;
@@ -29,24 +29,19 @@ public class ChatHudMixin {
         if (trimmedMessages == null || trimmedMessages.isEmpty()) return;
 
         Minecraft mc = Minecraft.getInstance();
-        if (!EmojiTextureManager.getAllNames().isEmpty()) {
-            String testName = EmojiTextureManager.getAllNames().get(0);
-            int centerX = mc.getWindow().getGuiScaledWidth() / 2;
-            int centerY = mc.getWindow().getGuiScaledHeight() / 2;
-            
-            guiGraphics.fill(centerX - 50, centerY - 50, centerX + 50, centerY + 50, 0xFFFF0000); // 红块
-            guiGraphics.drawString(mc.font, "TEST: " + testName, centerX - 40, centerY - 10, 0xFFFFFFFF);
-            
-            if (EmojiTextureManager.getTexture(testName) != null) {
-                // 渲染一下第一张图，确信图没坏
-                guiGraphics.blit(EmojiTextureManager.getTexture(testName), centerX - 48, centerY - 40, 0, 0, 96, 96, 96, 96);
-            }
-        }
-
         Pattern pattern = Pattern.compile("\\[([^\\]]+)\\]");
-        int baseY = mc.getWindow().getGuiScaledHeight() - 40;
+
+        // Apply the exact same PoseStack transform as vanilla ChatHud
         double chatScale = mc.options.chatScale().get();
-        int lineHeight = (int) (9 * chatScale);
+        int screenHeight = mc.getWindow().getGuiScaledHeight();
+        
+        guiGraphics.pose().pushPose();
+        // 1. Translate to the bottom chat area (40px from bottom)
+        guiGraphics.pose().translate(0.0F, (float)(screenHeight - 40), 0.0F);
+        // 2. Apply the user's chat scale
+        guiGraphics.pose().scale((float) chatScale, (float) chatScale, 1.0F);
+        // 3. Move up by the line height to start rendering the first line
+        guiGraphics.pose().translate(0.0F, -8.0F, 0.0F);
 
         for (int i = 0; i < trimmedMessages.size(); i++) {
             Object line = trimmedMessages.get(i);
@@ -55,36 +50,44 @@ public class ChatHudMixin {
             try {
                 java.lang.reflect.Method getContentMethod = line.getClass().getMethod("content");
                 Object contentObj = getContentMethod.invoke(line);
-                
-                String text = "";
-                // 必须用 getString() 才能拿到纯文本，不能用 toString()
-                if (contentObj instanceof Component comp) {
-                    text = comp.getString();
-                }
-                
-                Matcher matcher = pattern.matcher(text);
-                if (matcher.find()) {
-                    String emojiName = matcher.group(1);
-                    EmojiChat.LOGGER.info("CHAT RENDER DEBUG: Found emoji text! name=" + emojiName + " at index=" + i);
-                    
-                    if (EmojiTextureManager.has(emojiName)) {
-                        int imageSize = 96;
-                        int imageX = 4;
-                        
-                        // Y坐标计算：文字行在底部，图片画在它下方
-                        int textY = baseY - (i * lineHeight);
-                        int imageY = textY + lineHeight;
 
-                        if (EmojiTextureManager.getTexture(emojiName) != null) {
-                            guiGraphics.blit(EmojiTextureManager.getTexture(emojiName), imageX, imageY, 0, 0, imageSize, imageSize, imageSize, imageSize);
-                            EmojiChat.LOGGER.info("CHAT RENDER DEBUG: Drew image at X=" + imageX + " Y=" + imageY);
+                if (contentObj instanceof Component comp) {
+                    String text = comp.getString();
+                    Matcher matcher = pattern.matcher(text);
+
+                    if (matcher.find()) {
+                        String emojiName = matcher.group(1);
+                        if (EmojiTextureManager.has(emojiName)) {
+                            int imageSize = 96;
+                            int imageX = 4;
+                            
+                            // Since the text is at index 'i', and the blank lines are added AFTER the text,
+                            // visually, the blank lines are at smaller indices (below the text).
+                            // We draw the image directly below the text line.
+                            // Note: Y axis grows downwards.
+                            int textY = -(i * 9); // Relative to the first line
+                            
+                            // The image starts just below the text line
+                            int imageY = textY + 9; 
+
+                            if (EmojiTextureManager.getTexture(emojiName) != null) {
+                                // Render the image (it will be scaled by the PoseStack automatically)
+                                guiGraphics.blit(EmojiTextureManager.getTexture(emojiName), imageX, imageY, 0, 0, imageSize, imageSize, imageSize, imageSize);
+                            }
+                            
+                            // Save click area (need to convert back to absolute screen coordinates)
+                            int absoluteX = (int)(imageX * chatScale);
+                            int absoluteY = (int)((screenHeight - 40 + (imageY - 8) * chatScale));
+                            
+                            EmojiClickData.CLICK_AREAS.add(new EmojiClickArea(emojiName, absoluteX, absoluteY, (int)(imageSize * chatScale), (int)(imageSize * chatScale)));
                         }
-                        EmojiClickData.CLICK_AREAS.add(new EmojiClickArea(emojiName, imageX, imageY, imageSize, imageSize));
                     }
                 }
             } catch (Exception e) {
-                EmojiChat.LOGGER.error("CHAT RENDER ERROR", e);
+                // ignore
             }
         }
+        
+        guiGraphics.pose().popPose();
     }
 }
