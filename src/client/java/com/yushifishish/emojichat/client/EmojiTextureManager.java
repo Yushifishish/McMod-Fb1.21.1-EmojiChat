@@ -10,11 +10,12 @@ import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class EmojiTextureManager {
     private static final Map<String, ResourceLocation> CACHE = new ConcurrentHashMap<>();
-    private static final int MAX_SIZE = 48; // 最大限制 48x48
+    private static final int MAX_SIZE = 48;
 
     public static void put(String name, byte[] data) {
         try {
@@ -34,9 +35,15 @@ public class EmojiTextureManager {
             }
 
             DynamicTexture texture = new DynamicTexture(image);
-            ResourceLocation id = EmojiChat.id("emoji/" + name);
+            
+            // Core Fix: Convert names that may contain non-ASCII chars to UUID strings to ensure ResourceLocation compatibility
+            String safePath = UUID.nameUUIDFromBytes(name.getBytes()).toString().replace("-", "");
+            ResourceLocation id = EmojiChat.id("emoji/" + safePath);
+            
             Minecraft.getInstance().getTextureManager().register(id, texture);
-            CACHE.put(name, id);
+            // Keep the original name (e.g., Chinese) in the cache for display
+            CACHE.put(name, id); 
+            
         } catch (Exception e) {
             EmojiChat.LOGGER.error("Failed to load emoji: " + name, e);
         }
