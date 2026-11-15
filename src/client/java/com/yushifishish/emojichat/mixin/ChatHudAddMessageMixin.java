@@ -22,6 +22,7 @@ public class ChatHudAddMessageMixin {
         Pattern pattern = Pattern.compile("\\[([^\\]]+)\\]");
         Matcher matcher = pattern.matcher(text);
 
+        // 只负责检测表情并撑开聊天框
         while (matcher.find()) {
             String emojiName = matcher.group(1);
             if (EmojiTextureManager.has(emojiName)) {
