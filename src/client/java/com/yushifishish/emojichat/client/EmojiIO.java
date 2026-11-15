@@ -1,38 +1,29 @@
 package com.yushifishish.emojichat.client;
 
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.screens.Screen;
+import com.yushifishish.emojichat.EmojiChat;
+import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 
-public class EmojiPreviewScreen extends Screen {
-    private final String emojiName;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
-    public EmojiPreviewScreen(String name) {
-        super(Component.literal("Preview: " + name));
-        this.emojiName = name;
-    }
+public class EmojiIO {
+    public static void saveEmoji(String name, byte[] data) {
+        if (data == null) return;
+        Path configDir = FabricLoader.getInstance().getConfigDir().resolve("emoji-chat").resolve("custom");
+        Path targetFile = configDir.resolve(name + ".png");
 
-    @Override
-    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta) {
-        this.renderBackground(guiGraphics, mouseX, mouseY, delta);
-        
-        // Draw original image texture (Note: We use the large texture here, but rendered at 100% scale)
-        // Since MC UI uses scaling, we render it as big as possible while fitting the screen.
-        int maxSize = Math.min(this.width, this.height) - 40;
-        ResourceLocation tex = EmojiTextureManager.getLarge(emojiName);
-        
-        if (tex != null) {
-            guiGraphics.blit(tex, (this.width - maxSize) / 2, (this.height - maxSize) / 2, 0, 0, maxSize, maxSize, maxSize, maxSize);
+        try {
+            if (Files.exists(targetFile)) {
+                Minecraft.getInstance().player.displayClientMessage(Component.literal("§c[Emoji] Image already exists, skipping save."), false);
+                return;
+            }
+            Files.createDirectories(configDir);
+            Files.write(targetFile, data);
+            Minecraft.getInstance().player.displayClientMessage(Component.literal("§a[Emoji] Saved: " + name), false);
+        } catch (Exception e) {
+            EmojiChat.LOGGER.error("Failed to save emoji", e);
         }
-        
-        guiGraphics.drawCenteredString(this.font, "Name: " + emojiName, this.width / 2, 20, 0xFFFFFF);
-        guiGraphics.drawCenteredString(this.font, "Press ESC to close", this.width / 2, this.height - 30, 0xAAAAAA);
-        super.render(guiGraphics, mouseX, mouseY, delta);
-    }
-
-    @Override
-    public boolean isPauseScreen() {
-        return false;
     }
 }
