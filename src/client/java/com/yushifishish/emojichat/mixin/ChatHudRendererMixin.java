@@ -9,7 +9,8 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import org.joml.Matrix4f;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -17,14 +18,12 @@ import java.util.regex.Pattern;
 @Mixin(GuiGraphics.class)
 public class ChatHudRendererMixin {
 
-    @Redirect(
+    @Inject(
         method = "drawString(Lnet/minecraft/client/gui/Font;Ljava/lang/String;IIIZ)I",
-        at = @At(
-            value = "INVOKE",
-            target = "Lnet/minecraft/client/gui/Font;drawInBatch(Ljava/lang/String;FFIZLorg/joml/Matrix4f;Lnet/minecraft/client/renderer/MultiBufferSource;Lnet/minecraft/client/gui/Font$DisplayMode;II)I"
-        )
+        at = @At("HEAD"),
+        cancellable = true
     )
-    private int redirectDrawString(Font font, String text, float x, float y, int color, boolean dropShadow, Matrix4f matrix, MultiBufferSource bufferSource, Font.DisplayMode displayMode, int backgroundColor, int packedLight) {
+    private void onDrawString(Font font, String text, int x, int y, int color, boolean dropShadow, CallbackInfoReturnable<Integer> cir) {
         Pattern pattern = Pattern.compile("\\[([^\\]]+)\\]");
         Matcher matcher = pattern.matcher(text);
         
@@ -33,15 +32,14 @@ public class ChatHudRendererMixin {
             if (EmojiTextureManager.has(emojiName)) {
                 GuiGraphics graphics = (GuiGraphics) (Object) this;
                 int imageSize = 96;
-                int imgX = (int) x;
-                int imgY = (int) (y - imageSize + font.lineHeight);
+                int imgX = x;
+                int imgY = y - imageSize + font.lineHeight;
                 
                 graphics.blit(EmojiTextureManager.getTexture(emojiName), imgX, imgY, 0, 0, imageSize, imageSize, imageSize, imageSize);
                 EmojiClickData.CLICK_AREAS.add(new EmojiClickArea(emojiName, imgX, imgY, imageSize, imageSize));
                 
-                return imageSize; 
+                cir.setReturnValue(imageSize); 
             }
         }
-        return font.drawInBatch(text, x, y, color, dropShadow, matrix, bufferSource, displayMode, backgroundColor, packedLight);
     }
 }
