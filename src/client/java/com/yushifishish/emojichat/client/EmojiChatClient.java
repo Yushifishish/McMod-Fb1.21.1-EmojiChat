@@ -19,14 +19,12 @@ public class EmojiChatClient implements ClientModInitializer {
 		});
 
 		// Local Display Trick: Add empty lines ONLY on the local client to expand the chat height
-		ClientReceiveMessageEvents.MODIFY_GAME.register((message, signedMessage, sender, params, receptionTimestamp) -> {
-			String text = message.getString();
-			// If the message contains an emoji pattern
-			if (text.matches(".*\\[[^\\]]+\\].*")) {
-				// Append 10 empty lines to expand the chat box height locally
-				return Component.literal(text + "\n\n\n\n\n\n\n\n\n\n");
-			}
-			return message;
-		});
+		ClientReceiveMessageEvents.MODIFY_GAME.register((message, overlay) -> {
+            String text = message.getString();
+            if (text.matches(".*\\[[^\\]]+\\].*")) {
+                return Component.literal(text + "\n\n\n\n\n\n\n\n\n\n");
+            }
+            return message;
+        });
 	}
 }
