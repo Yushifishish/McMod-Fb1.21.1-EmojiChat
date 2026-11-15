@@ -145,32 +145,38 @@ public class ChatScreenMixin {
             int total = currentMatches.size();
             int itemHeight = 22;
 
-            // The center Y position (this corresponds to the 3rd item, slot 0)
             int centerY = this.input.getY() - 6 - 20 - (2 * itemHeight);
             
-            // Smooth scrolling interpolation
             float targetScroll = (float) this.selectedIndex;
-            // Faster response when holding keys, slower and smoother for single presses
-            float lerpFactor = (System.currentTimeMillis() - this.lastKeyPressTime < 150) ? 0.45f : 0.15f;
+            
+            float lerpFactor = (System.currentTimeMillis() - this.lastKeyPressTime < 150) ? 0.45f : 0.08f;
             
             float diff = targetScroll - this.smoothScroll;
-            // Handle wrap-around jumping smoothly
             if (diff > total / 2.0f) diff -= total;
             if (diff < -total / 2.0f) diff += total;
 
-            this.smoothScroll += diff * lerpFactor;
+            // Calculate movement for this frame
+            float moveAmount = diff * lerpFactor;
             
-            // Snap if close enough to avoid endless micro-animations
-            if (Math.abs(targetScroll - this.smoothScroll) < 0.01f) {
+            // Max speed limit: limit maximum movement per frame to avoid teleporting
+            float maxSpeed = 1.0f; 
+            if (moveAmount > maxSpeed) {
+                moveAmount = maxSpeed;
+            } else if (moveAmount < -maxSpeed) {
+                moveAmount = -maxSpeed;
+            }
+
+            this.smoothScroll += moveAmount;
+            
+            // Snap threshold
+            if (Math.abs(targetScroll - this.smoothScroll) < 0.02f) {
                 this.smoothScroll = targetScroll;
             }
 
-            // Scissor to clip items outside the 5-slot box
             int boxTop = centerY - (2 * itemHeight) - 4;
             int boxBottom = centerY + (2 * itemHeight) + itemHeight + 2;
             guiGraphics.enableScissor(x, boxTop, x + menuWidth, boxBottom);
 
-            // Render items around the center
             for (int i = -3; i <= 3; i++) {
                 int actualIndex = (int)Math.round(this.smoothScroll) + i;
                 float offset = actualIndex - this.smoothScroll;
@@ -180,8 +186,6 @@ public class ChatScreenMixin {
                 int wrappedIndex = (actualIndex % total + total) % total;
                 String name = currentMatches.get(wrappedIndex);
                 
-                // Y coordinate calculation: Y goes DOWN in Minecraft
-                // If offset is positive, it's below the center.
                 int y = centerY + (int)(offset * itemHeight);
 
                 if (wrappedIndex == this.selectedIndex) {
